@@ -90,8 +90,8 @@
       clip-path: inset(0 0 15px 16px);
     }
 
-    /* 3-2. 全部表示 (4-6の場合): トリミング無効（全体を表示） */
-    .card-container.ver4-mode.mode-full .card-img-wrapper img:not(.cleared-img) {
+    /* 3-2. 全部表示 (4, 5, 6, 6.5 の場合): トリミング無効（全体を表示） */
+    .card-container.ver4to65-mode.mode-full .card-img-wrapper img:not(.cleared-img) {
       position: static;
       width: 100%;
       height: 100%;
@@ -138,7 +138,10 @@
           <option value="2">三国志大戦2</option>
           <option value="3">三国志大戦3</option>
           <option value="3_gunshi">三国志大戦3 - 軍師</option>
-          <option value="4">三国志大戦4-6</option>
+          <option value="4">三国志大戦4</option>
+          <option value="5">三国志大戦5</option>
+          <option value="6">三国志大戦6</option>
+          <option value="6.5">三国志大戦6.5</option>
         </select>
       </div>
 
@@ -227,8 +230,10 @@
       return document.getElementById("version-select").value === "3_gunshi";
     }
 
-    function isVer4Mode() {
-      return document.getElementById("version-select").value === "4";
+    // 4, 5, 6, 6.5 のモード判定
+    function isVer4To65Mode() {
+      const ver = document.getElementById("version-select").value;
+      return ver === "4" || ver === "5" || ver === "6" || ver === "6.5";
     }
 
     function loadData() {
@@ -237,17 +242,17 @@
       if (ver === "2") jsonFile = "sangokushi_cards_v2.json";
       else if (ver === "3") jsonFile = "sangokushi_cards_v3.json";
       else if (ver === "3_gunshi") jsonFile = "sangokushi_cards_v3_gunshi.json";
-      else if (ver === "4") jsonFile = "sangokushi_cards_v4.json";
+      else if (ver === "4" || ver === "5" || ver === "6" || ver === "6.5") jsonFile = `sangokushi_cards_v${ver}.json`;
 
       const folder = getCurrentFolder();
       const grid = document.getElementById("card-grid");
 
       // レイアウトモードの切り替えクラス反映
-      grid.classList.remove("gunshi-mode", "ver4-mode");
+      grid.classList.remove("gunshi-mode", "ver4to65-mode");
       if (isGunshiMode()) {
         grid.classList.add("gunshi-mode");
-      } else if (isVer4Mode()) {
-        grid.classList.add("ver4-mode");
+      } else if (isVer4To65Mode()) {
+        grid.classList.add("ver4to65-mode");
       }
 
       fetch(jsonFile)
@@ -514,7 +519,7 @@
       const currentModeEl = document.querySelector('input[name="display-mode"]:checked');
       const currentMode = currentModeEl ? currentModeEl.value : "hide";
       const gunshi = isGunshiMode();
-      const ver4 = isVer4Mode();
+      const ver4to65 = isVer4To65Mode();
 
       cardsData.forEach((card, idx) => {
         const cardEl = document.createElement("div");
@@ -534,7 +539,7 @@
             No.${card.displayNo} [${card.rarity}]<br>
             ${card.hiryaku} / ${card.jinryaku}
           `;
-        } else if (ver4) {
+        } else if (ver4to65) {
           infoHtml = `
             No.${card.displayNo} [${card.rarity}]<br>
             武${card.power}/知${card.int}/征${card.seiatsu}/ｺｽﾄ${card.cost}<br>
