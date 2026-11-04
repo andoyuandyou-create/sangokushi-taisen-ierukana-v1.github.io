@@ -78,7 +78,7 @@
       transform: scale(5);
     }
 
-    /* 3. 全部表示 (通常 77×108 の場合): 右上から 61×93 を切り出し */
+    /* 3. 全部表示 (通常 1〜3の場合): 右上から 61×93 を切り出し */
     .card-container.mode-full .card-img-wrapper img:not(.cleared-img) {
       position: absolute;
       top: 0;
@@ -90,7 +90,17 @@
       clip-path: inset(0 0 15px 16px);
     }
 
-    /* 3. 全部表示 (軍師 108×77 横向きの場合): 縦横入れ替えたトリミング */
+    /* 3-2. 全部表示 (4-6の場合): トリミング無効（全体を表示） */
+    .card-container.ver4-mode.mode-full .card-img-wrapper img:not(.cleared-img) {
+      position: static;
+      width: 100%;
+      height: 100%;
+      display: block;
+      object-fit: fill;
+      clip-path: none;
+    }
+
+    /* 3-3. 全部表示 (軍師 108×77 横向きの場合): 縦横入れ替えたトリミング */
     .card-container.gunshi-mode.mode-full .card-img-wrapper img:not(.cleared-img) {
       position: absolute;
       top: 0;
@@ -99,7 +109,7 @@
       height: 77px;
       display: block;
       object-fit: fill;
-      clip-path: inset(0 0 12px 18px); /* 横向き用に調整 */
+      clip-path: inset(0 0 12px 18px);
     }
 
     /* ステータス表示・非表示の切り替えクラス */
@@ -128,6 +138,7 @@
           <option value="2">三国志大戦2</option>
           <option value="3">三国志大戦3</option>
           <option value="3_gunshi">三国志大戦3 - 軍師</option>
+          <option value="4">三国志大戦4-6</option>
         </select>
       </div>
 
@@ -200,7 +211,6 @@
       return s;
     }
 
-    // シリーズに応じたフォルダ名の自動取得
     function getCurrentFolder() {
       const ver = document.getElementById("version-select").value;
       if (ver === "1") return "sangokushitaisen1";
@@ -213,27 +223,31 @@
       return `sangokushi_game_v${ver}`;
     }
 
-    // 軍師モード判定
     function isGunshiMode() {
       return document.getElementById("version-select").value === "3_gunshi";
     }
 
+    function isVer4Mode() {
+      return document.getElementById("version-select").value === "4";
+    }
+
     function loadData() {
       const ver = document.getElementById("version-select").value;
-      // バージョンに応じたJSONファイル名
       let jsonFile = "sangokushi_cards.json";
       if (ver === "2") jsonFile = "sangokushi_cards_v2.json";
       else if (ver === "3") jsonFile = "sangokushi_cards_v3.json";
       else if (ver === "3_gunshi") jsonFile = "sangokushi_cards_v3_gunshi.json";
+      else if (ver === "4") jsonFile = "sangokushi_cards_v4.json";
 
       const folder = getCurrentFolder();
       const grid = document.getElementById("card-grid");
 
       // レイアウトモードの切り替えクラス反映
+      grid.classList.remove("gunshi-mode", "ver4-mode");
       if (isGunshiMode()) {
         grid.classList.add("gunshi-mode");
-      } else {
-        grid.classList.remove("gunshi-mode");
+      } else if (isVer4Mode()) {
+        grid.classList.add("ver4-mode");
       }
 
       fetch(jsonFile)
@@ -249,7 +263,7 @@
               formattedNo = rawNo.padStart(3, '0');
             }
 
-            const bushoName = String(item["武将名"] || "").trim();
+            const bushoName = String(item["武将名"] || item["名前"] || "").trim();
             const yomi = String(item["ヨミ"] || "").trim();
             const yomiFirstWord = yomi.split(" ")[0] || "";
             
@@ -259,16 +273,17 @@
               displayNo: rawNo,
               noPrefix: formattedNo,
               rarity: item["レアリティ"] || "",
-              attribute: item["属性"] || "", // 三国志大戦3用の属性
+              attribute: item["属性"] || "",
               bushoName: bushoName,
               yomi: yomi,
               yomiFirst: yomiFirstWord,
               power: item["武力"] || "",
               int: item["知力"] || "",
+              seiatsu: item["征圧"] || "",
               cost: item["武将コスト"] || item["コスト"] || "",
-              strategy: item["計略名"] || "",
-              hiryaku: item["兵略"] || "", // 軍師用
-              jinryaku: item["陣略"] || "", // 軍師用
+              strategy: item["計略名"] || item["計略/軍略名"] || "",
+              hiryaku: item["兵略"] || "",
+              jinryaku: item["陣略"] || "",
               imgPath: imgFileName,
               isCleared: false
             };
@@ -283,8 +298,7 @@
             <div style='grid-column: 1 / -1; margin-top:20px; color:#ff6b6b;'>
               <h3>カードデータの読み込みに失敗しました</h3>
               <p style='font-size:0.85rem; color:#ccc;'>
-                JSONファイル (<b>${jsonFile}</b>) が配置されているか確認してください。<br>
-                ※ローカルファイル(file://)で直接開いている場合は、ローカルWebサーバー(Live Server等)をご利用ください。
+                JSONファイル (<b>${jsonFile}</b>) が配置されているか確認してください。
               </p>
             </div>`;
         });
@@ -500,6 +514,7 @@
       const currentModeEl = document.querySelector('input[name="display-mode"]:checked');
       const currentMode = currentModeEl ? currentModeEl.value : "hide";
       const gunshi = isGunshiMode();
+      const ver4 = isVer4Mode();
 
       cardsData.forEach((card, idx) => {
         const cardEl = document.createElement("div");
@@ -513,15 +528,19 @@
           imgSrc = `images/${card.imgPath}`;
         }
 
-        // カード情報の組み立て（軍師モードと通常モードで切り替え）
         let infoHtml = "";
         if (gunshi) {
           infoHtml = `
             No.${card.displayNo} [${card.rarity}]<br>
             ${card.hiryaku} / ${card.jinryaku}
           `;
+        } else if (ver4) {
+          infoHtml = `
+            No.${card.displayNo} [${card.rarity}]<br>
+            武${card.power}/知${card.int}/征${card.seiatsu}/ｺｽﾄ${card.cost}<br>
+            【${card.strategy}】
+          `;
         } else {
-          // 属性があれば 【属性】 を先頭に付与
           const attrPart = card.attribute ? `【${card.attribute}】` : "";
           infoHtml = `
             ${attrPart}No.${card.displayNo} [${card.rarity}]<br>
