@@ -138,10 +138,7 @@
           <option value="2">三国志大戦2</option>
           <option value="3">三国志大戦3</option>
           <option value="3_gunshi">三国志大戦3 - 軍師</option>
-          <option value="4">三国志大戦4</option>
-          <option value="5">三国志大戦5</option>
-          <option value="6">三国志大戦6</option>
-          <option value="6.5">三国志大戦6.5</option>
+          <option value="4">三国志大戦4-6</option>
         </select>
       </div>
 
@@ -165,6 +162,10 @@
         <label><input type="radio" name="display-mode" value="hide" checked onclick="changeDisplayMode('hide')"> 非表示</label>
         <label><input type="radio" name="display-mode" value="partial" onclick="changeDisplayMode('partial')"> 一部表示</label>
         <label><input type="radio" name="display-mode" value="full" onclick="changeDisplayMode('full')"> 全部表示</label>
+      </div>
+
+      <div class="control-group">
+        <label><input type="checkbox" id="bulk-match-checkbox" onchange="saveGameState()"> 同名武将一括正解</label>
       </div>
 
       <div class="control-group">
@@ -230,7 +231,6 @@
       return document.getElementById("version-select").value === "3_gunshi";
     }
 
-    // 4, 5, 6, 6.5 のモード判定
     function isVer4To65Mode() {
       const ver = document.getElementById("version-select").value;
       return ver === "4" || ver === "5" || ver === "6" || ver === "6.5";
@@ -247,7 +247,6 @@
       const folder = getCurrentFolder();
       const grid = document.getElementById("card-grid");
 
-      // レイアウトモードの切り替えクラス反映
       grid.classList.remove("gunshi-mode", "ver4to65-mode");
       if (isGunshiMode()) {
         grid.classList.add("gunshi-mode");
@@ -378,7 +377,8 @@
         isTimerStarted,
         livesSelectVal: document.getElementById("lives-select").value,
         displayMode: displayModeEl ? displayModeEl.value : "hide",
-        statusShow: !document.getElementById("card-grid").classList.contains("hidden-status")
+        statusShow: !document.getElementById("card-grid").classList.contains("hidden-status"),
+        bulkMatch: document.getElementById("bulk-match-checkbox").checked
       };
       localStorage.setItem(getStorageKey(), JSON.stringify(state));
     }
@@ -423,6 +423,10 @@
         if (statusRadio) {
           statusRadio.checked = true;
           toggleStatus(state.statusShow);
+        }
+
+        if (state.bulkMatch !== undefined) {
+          document.getElementById("bulk-match-checkbox").checked = state.bulkMatch;
         }
 
         if (isTimerStarted && !isGameOver) {
@@ -581,24 +585,37 @@
 
         startTimerIfNeeded();
 
-        const targetCard = cardsData
-          .filter(c => !c.isCleared && (normalizeStr(c.bushoName) === normVal || normalizeStr(c.yomiFirst) === normVal))
-          .sort((a, b) => parseInt(a.displayNo) - parseInt(b.displayNo))[0];
+        const isBulk = document.getElementById("bulk-match-checkbox").checked;
 
-        const targetIndex = cardsData.indexOf(targetCard);
+        let targetCards = [];
+        if (isBulk) {
+          // 一括正解モード：条件に一致する未クリアのカードをすべて取得
+          targetCards = cardsData.filter(c => !c.isCleared && (normalizeStr(c.bushoName) === normVal || normalizeStr(c.yomiFirst) === normVal));
+        } else {
+          // 通常モード：No順で一番最初の1枚だけを取得
+          const single = cardsData
+            .filter(c => !c.isCleared && (normalizeStr(c.bushoName) === normVal || normalizeStr(c.yomiFirst) === normVal))
+            .sort((a, b) => parseInt(a.displayNo) - parseInt(b.displayNo))[0];
+          if (single) targetCards = [single];
+        }
 
-        if (targetCard && targetIndex !== -1) {
-          targetCard.isCleared = true;
-          correctCount++;
-          
-          const cardBox = document.getElementById(`card-${targetIndex}`);
-          cardBox.classList.add("cleared");
-          
-          const targetImg = document.getElementById(`img-${targetIndex}`);
-          targetImg.src = `images/${targetCard.imgPath}`;
-          targetImg.classList.add("cleared-img");
+        if (targetCards.length > 0) {
+          // 該当するカードをすべてクリア状態にする
+          targetCards.forEach(targetCard => {
+            targetCard.isCleared = true;
+            correctCount++;
 
-          document.getElementById(`name-${targetIndex}`).innerText = targetCard.bushoName;
+            const targetIndex = cardsData.indexOf(targetCard);
+            const cardBox = document.getElementById(`card-${targetIndex}`);
+            cardBox.classList.add("cleared");
+            
+            const targetImg = document.getElementById(`img-${targetIndex}`);
+            targetImg.src = `images/${targetCard.imgPath}`;
+            targetImg.classList.add("cleared-img");
+
+            document.getElementById(`name-${targetIndex}`).innerText = targetCard.bushoName;
+          });
+
           document.getElementById("score").innerText = correctCount;
           inputEl.value = "";
 
