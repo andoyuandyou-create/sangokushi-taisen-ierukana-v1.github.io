@@ -138,7 +138,10 @@
           <option value="2">三国志大戦2</option>
           <option value="3">三国志大戦3</option>
           <option value="3_gunshi">三国志大戦3 - 軍師</option>
-          <option value="4">三国志大戦4-6</option>
+          <option value="4">三国志大戦4</option>
+          <option value="5">三国志大戦5</option>
+          <option value="6">三国志大戦6</option>
+          <option value="6.5">三国志大戦6.5</option>
         </select>
       </div>
 
@@ -309,8 +312,12 @@
     }
 
     function changeVersion() {
+      // 1. 切り替え前の状態を現在のバージョン用キーで確実にセーブ
       saveGameState();
+      // 2. 動作中のタイマーを停止
       if (timerInterval) clearInterval(timerInterval);
+      isTimerStarted = false;
+      // 3. 新しいバージョンのデータをロードして状態を復元
       loadData();
     }
 
@@ -429,6 +436,13 @@
           document.getElementById("bulk-match-checkbox").checked = state.bulkMatch;
         }
 
+        const inputEl = document.getElementById("name-input");
+        if (isGameOver) {
+          inputEl.disabled = true;
+        } else {
+          inputEl.disabled = false;
+        }
+
         if (isTimerStarted && !isGameOver) {
           startTimerIfNeeded(true);
         }
@@ -454,7 +468,9 @@
     }
 
     function resetGamePrompt() {
-      if (confirm("ゲームの進行状況とタイマーをリセットしますか？")) {
+      const seriesSelect = document.getElementById("version-select");
+      const seriesName = seriesSelect.options[seriesSelect.selectedIndex].text;
+      if (confirm(`「${seriesName}」のゲーム進行状況とタイマーをリセットしますか？`)) {
         localStorage.removeItem(getStorageKey());
         if (timerInterval) clearInterval(timerInterval);
         
@@ -465,9 +481,6 @@
         inputEl.disabled = false;
         inputEl.value = "";
         
-        document.getElementById("version-select").disabled = false;
-        document.getElementById("lives-select").disabled = false;
-
         document.getElementById("score").innerText = "0";
         document.getElementById("timer").innerText = "00:00";
         document.getElementById("miss-count").innerText = "0";
@@ -482,9 +495,6 @@
     function startTimerIfNeeded(isRestoring = false) {
       if ((!isTimerStarted || isRestoring) && !isGameOver) {
         isTimerStarted = true;
-
-        document.getElementById("version-select").disabled = true;
-        document.getElementById("lives-select").disabled = true;
 
         if (!isRestoring && timerInterval) clearInterval(timerInterval);
 
@@ -571,8 +581,11 @@
       });
 
       changeLivesMode();
+      const inputEl = document.getElementById("name-input");
       if (isGameOver) {
-        document.getElementById("name-input").disabled = true;
+        inputEl.disabled = true;
+      } else {
+        inputEl.disabled = false;
       }
     }
 
@@ -589,10 +602,8 @@
 
         let targetCards = [];
         if (isBulk) {
-          // 一括正解モード：条件に一致する未クリアのカードをすべて取得
           targetCards = cardsData.filter(c => !c.isCleared && (normalizeStr(c.bushoName) === normVal || normalizeStr(c.yomiFirst) === normVal));
         } else {
-          // 通常モード：No順で一番最初の1枚だけを取得
           const single = cardsData
             .filter(c => !c.isCleared && (normalizeStr(c.bushoName) === normVal || normalizeStr(c.yomiFirst) === normVal))
             .sort((a, b) => parseInt(a.displayNo) - parseInt(b.displayNo))[0];
@@ -600,7 +611,6 @@
         }
 
         if (targetCards.length > 0) {
-          // 該当するカードをすべてクリア状態にする
           targetCards.forEach(targetCard => {
             targetCard.isCleared = true;
             correctCount++;
