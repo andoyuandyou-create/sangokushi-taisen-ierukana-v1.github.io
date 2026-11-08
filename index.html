@@ -90,8 +90,8 @@
       clip-path: inset(0 0 15px 16px);
     }
 
-    /* 3-2. 全部表示 (4, 5, 6, 6.5 の場合): トリミング無効（全体を表示） */
-    .card-container.ver4to65-mode.mode-full .card-img-wrapper img:not(.cleared-img) {
+    /* 3-2. 全部表示 (4 の場合): トリミング無効（全体を表示） */
+    .card-container.ver4-mode.mode-full .card-img-wrapper img:not(.cleared-img) {
       position: static;
       width: 100%;
       height: 100%;
@@ -139,9 +139,6 @@
           <option value="3">三国志大戦3</option>
           <option value="3_gunshi">三国志大戦3 - 軍師</option>
           <option value="4">三国志大戦4</option>
-          <option value="5">三国志大戦5</option>
-          <option value="6">三国志大戦6</option>
-          <option value="6.5">三国志大戦6.5</option>
         </select>
       </div>
 
@@ -234,9 +231,8 @@
       return document.getElementById("version-select").value === "3_gunshi";
     }
 
-    function isVer4To65Mode() {
-      const ver = document.getElementById("version-select").value;
-      return ver === "4" || ver === "5" || ver === "6" || ver === "6.5";
+    function isVer4Mode() {
+      return document.getElementById("version-select").value === "4";
     }
 
     function loadData() {
@@ -245,16 +241,16 @@
       if (ver === "2") jsonFile = "sangokushi_cards_v2.json";
       else if (ver === "3") jsonFile = "sangokushi_cards_v3.json";
       else if (ver === "3_gunshi") jsonFile = "sangokushi_cards_v3_gunshi.json";
-      else if (ver === "4" || ver === "5" || ver === "6" || ver === "6.5") jsonFile = `sangokushi_cards_v${ver}.json`;
+      else if (ver === "4") jsonFile = "sangokushi_cards_v4.json";
 
       const folder = getCurrentFolder();
       const grid = document.getElementById("card-grid");
 
-      grid.classList.remove("gunshi-mode", "ver4to65-mode");
+      grid.classList.remove("gunshi-mode", "ver4-mode");
       if (isGunshiMode()) {
         grid.classList.add("gunshi-mode");
-      } else if (isVer4To65Mode()) {
-        grid.classList.add("ver4to65-mode");
+      } else if (isVer4Mode()) {
+        grid.classList.add("ver4-mode");
       }
 
       fetch(jsonFile)
@@ -312,12 +308,9 @@
     }
 
     function changeVersion() {
-      // 1. 切り替え前の状態を現在のバージョン用キーで確実にセーブ
       saveGameState();
-      // 2. 動作中のタイマーを停止
       if (timerInterval) clearInterval(timerInterval);
       isTimerStarted = false;
-      // 3. 新しいバージョンのデータをロードして状態を復元
       loadData();
     }
 
@@ -373,7 +366,8 @@
       if (cardsData.length === 0) return;
       const displayModeEl = document.querySelector('input[name="display-mode"]:checked');
       const state = {
-        clearedIndices: cardsData.map((c, i) => c.isCleared ? i : -1).filter(i => i !== -1),
+        // インデックスではなく、カード独自の identifier (displayNo) の配列として保存
+        clearedIds: cardsData.filter(c => c.isCleared).map(c => c.displayNo),
         correctCount,
         seconds,
         missCount,
@@ -411,9 +405,12 @@
           document.getElementById("lives-select").value = state.livesSelectVal;
         }
 
-        if (state.clearedIndices) {
-          state.clearedIndices.forEach(idx => {
-            if (cardsData[idx]) cardsData[idx].isCleared = true;
+        // clearedIds（カードの固有Noリスト）を元に一致するカードだけをクリアにする
+        if (state.clearedIds && Array.isArray(state.clearedIds)) {
+          cardsData.forEach(card => {
+            if (state.clearedIds.includes(card.displayNo)) {
+              card.isCleared = true;
+            }
           });
         }
 
@@ -533,7 +530,7 @@
       const currentModeEl = document.querySelector('input[name="display-mode"]:checked');
       const currentMode = currentModeEl ? currentModeEl.value : "hide";
       const gunshi = isGunshiMode();
-      const ver4to65 = isVer4To65Mode();
+      const ver4 = isVer4Mode();
 
       cardsData.forEach((card, idx) => {
         const cardEl = document.createElement("div");
@@ -553,7 +550,7 @@
             No.${card.displayNo} [${card.rarity}]<br>
             ${card.hiryaku} / ${card.jinryaku}
           `;
-        } else if (ver4to65) {
+        } else if (ver4) {
           infoHtml = `
             No.${card.displayNo} [${card.rarity}]<br>
             武${card.power}/知${card.int}/征${card.seiatsu}/ｺｽﾄ${card.cost}<br>
