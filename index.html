@@ -134,7 +134,8 @@
     <!-- コントロール群 -->
     <div class="controls-row">
       <div class="control-group">
-        シリーズ: <select id="version-select" onchange="changeVersion()">
+        <!-- ※ onchange属性を削除し、ゲーム開始後はJSでdisabled制御します -->
+        シリーズ: <select id="version-select">
           <option value="1">三国志大戦</option>
           <option value="2">三国志大戦2</option>
           <option value="3">三国志大戦3</option>
@@ -316,12 +317,6 @@
         });
     }
 
-    function changeVersion() {
-      saveGameState();
-      if (timerInterval) clearInterval(timerInterval);
-      loadData();
-    }
-
     function changeLivesMode() {
       const val = document.getElementById("lives-select").value;
       if (val === "none") {
@@ -370,11 +365,12 @@
       saveGameState();
     }
 
-    // 回答が開始されている（＝タイマーが動いている、または1枚以上正解している）か判定
+    // ゲームが開始されているか判定
     function isGameStarted() {
       return isTimerStarted || correctCount > 0 || missCount > 0 || (initialLives !== lives);
     }
 
+    // シリーズ選択のロック・アンロック制御
     function updateControlLockState() {
       const versionSelect = document.getElementById("version-select");
       const livesSelect = document.getElementById("lives-select");
@@ -525,7 +521,6 @@
       if ((!isTimerStarted || isRestoring) && !isGameOver) {
         isTimerStarted = true;
 
-        // 回答開始時にシリーズ変更をロック
         updateControlLockState();
 
         if (!isRestoring && timerInterval) clearInterval(timerInterval);
