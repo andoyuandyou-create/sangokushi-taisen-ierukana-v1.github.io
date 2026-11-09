@@ -236,6 +236,15 @@
     }
 
     function loadData() {
+      // 1. データをロードする前に、直前の変数をすべてクリアして初期化
+      if (timerInterval) clearInterval(timerInterval);
+      timerInterval = null;
+      isTimerStarted = false;
+      isGameOver = false;
+      correctCount = 0;
+      seconds = 0;
+      missCount = 0;
+
       const ver = document.getElementById("version-select").value;
       let jsonFile = "sangokushi_cards.json";
       if (ver === "2") jsonFile = "sangokushi_cards_v2.json";
@@ -292,6 +301,7 @@
             };
           });
 
+          // 2. ロード完了後にこのバージョンの保存データを正確に反映
           loadGameState();
           initGame();
         })
@@ -310,7 +320,6 @@
     function changeVersion() {
       saveGameState();
       if (timerInterval) clearInterval(timerInterval);
-      isTimerStarted = false;
       loadData();
     }
 
@@ -366,9 +375,8 @@
       if (cardsData.length === 0) return;
       const displayModeEl = document.querySelector('input[name="display-mode"]:checked');
       const state = {
-        // インデックスではなく、カード独自の identifier (displayNo) の配列として保存
         clearedIds: cardsData.filter(c => c.isCleared).map(c => c.displayNo),
-        correctCount,
+        correctCount: cardsData.filter(c => c.isCleared).length,
         seconds,
         missCount,
         lives,
@@ -392,7 +400,6 @@
       }
       try {
         const state = JSON.parse(saved);
-        correctCount = state.correctCount || 0;
         seconds = state.seconds || 0;
         missCount = state.missCount || 0;
         initialLives = state.initialLives || 12;
@@ -403,9 +410,12 @@
 
         if (state.livesSelectVal) {
           document.getElementById("lives-select").value = state.livesSelectVal;
+          if (state.livesSelectVal !== "none") {
+            initialLives = parseInt(state.livesSelectVal, 10);
+          }
         }
 
-        // clearedIds（カードの固有Noリスト）を元に一致するカードだけをクリアにする
+        // 各カードのクリア状態を復元
         if (state.clearedIds && Array.isArray(state.clearedIds)) {
           cardsData.forEach(card => {
             if (state.clearedIds.includes(card.displayNo)) {
@@ -413,6 +423,9 @@
             }
           });
         }
+        
+        // 正解数は常に実際のクリア済みカード数から正確に算出する
+        correctCount = cardsData.filter(c => c.isCleared).length;
 
         if (state.displayMode) {
           const radio = document.querySelector(`input[name="display-mode"][value="${state.displayMode}"]`);
