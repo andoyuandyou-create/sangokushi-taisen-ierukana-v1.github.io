@@ -14,6 +14,7 @@
     input[type="text"] { font-size: 1.1rem; padding: 6px 12px; width: 85%; max-width: 280px; border-radius: 4px; border: 1px solid #666; background: #333; color: #fff; text-align: center; }
     button { background: #444; color: #fff; border: 1px solid #666; padding: 4px 10px; border-radius: 4px; cursor: pointer; font-size: 0.85rem; }
     button:hover { background: #555; }
+    select:disabled { opacity: 0.6; cursor: not-allowed; }
     .stats { font-size: 0.9rem; margin-top: 8px; color: #ccc; display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; align-items: center; }
     
     .shiki-icon { width: 16px; height: 16px; vertical-align: middle; margin: 0 1px; }
@@ -236,7 +237,6 @@
     }
 
     function loadData() {
-      // 1. データをロードする前に、直前の変数をすべてクリアして初期化
       if (timerInterval) clearInterval(timerInterval);
       timerInterval = null;
       isTimerStarted = false;
@@ -301,7 +301,6 @@
             };
           });
 
-          // 2. ロード完了後にこのバージョンの保存データを正確に反映
           loadGameState();
           initGame();
         })
@@ -371,6 +370,23 @@
       saveGameState();
     }
 
+    // 回答が開始されている（＝タイマーが動いている、または1枚以上正解している）か判定
+    function isGameStarted() {
+      return isTimerStarted || correctCount > 0 || missCount > 0 || (initialLives !== lives);
+    }
+
+    function updateControlLockState() {
+      const versionSelect = document.getElementById("version-select");
+      const livesSelect = document.getElementById("lives-select");
+      if (isGameStarted() && !isGameOver) {
+        versionSelect.disabled = true;
+        livesSelect.disabled = true;
+      } else {
+        versionSelect.disabled = false;
+        livesSelect.disabled = false;
+      }
+    }
+
     function saveGameState() {
       if (cardsData.length === 0) return;
       const displayModeEl = document.querySelector('input[name="display-mode"]:checked');
@@ -396,6 +412,7 @@
       const saved = localStorage.getItem(getStorageKey());
       if (!saved) {
         resetStatsOnly();
+        updateControlLockState();
         return;
       }
       try {
@@ -415,7 +432,6 @@
           }
         }
 
-        // 各カードのクリア状態を復元
         if (state.clearedIds && Array.isArray(state.clearedIds)) {
           cardsData.forEach(card => {
             if (state.clearedIds.includes(card.displayNo)) {
@@ -424,7 +440,6 @@
           });
         }
         
-        // 正解数は常に実際のクリア済みカード数から正確に算出する
         correctCount = cardsData.filter(c => c.isCleared).length;
 
         if (state.displayMode) {
@@ -456,9 +471,12 @@
         if (isTimerStarted && !isGameOver) {
           startTimerIfNeeded(true);
         }
+
+        updateControlLockState();
       } catch(e) {
         console.error(e);
         resetStatsOnly();
+        updateControlLockState();
       }
     }
 
@@ -499,12 +517,16 @@
         const currentMode = currentModeEl ? currentModeEl.value : "hide";
         initGame();
         changeDisplayMode(currentMode);
+        updateControlLockState();
       }
     }
 
     function startTimerIfNeeded(isRestoring = false) {
       if ((!isTimerStarted || isRestoring) && !isGameOver) {
         isTimerStarted = true;
+
+        // 回答開始時にシリーズ変更をロック
+        updateControlLockState();
 
         if (!isRestoring && timerInterval) clearInterval(timerInterval);
 
@@ -597,6 +619,7 @@
       } else {
         inputEl.disabled = false;
       }
+      updateControlLockState();
     }
 
     const inputEl = document.getElementById("name-input");
