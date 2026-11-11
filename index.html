@@ -134,8 +134,7 @@
     <!-- コントロール群 -->
     <div class="controls-row">
       <div class="control-group">
-        <!-- ※ onchange属性を削除し、ゲーム開始後はJSでdisabled制御します -->
-        シリーズ: <select id="version-select">
+        シリーズ: <select id="version-select" onchange="changeVersion()">
           <option value="1">三国志大戦</option>
           <option value="2">三国志大戦2</option>
           <option value="3">三国志大戦3</option>
@@ -235,6 +234,13 @@
 
     function isVer4Mode() {
       return document.getElementById("version-select").value === "4";
+    }
+
+    // バージョン変更時の処理
+    function changeVersion() {
+      saveGameState();
+      if (timerInterval) clearInterval(timerInterval);
+      loadData();
     }
 
     function loadData() {
@@ -365,12 +371,10 @@
       saveGameState();
     }
 
-    // ゲームが開始されているか判定
     function isGameStarted() {
       return isTimerStarted || correctCount > 0 || missCount > 0 || (initialLives !== lives);
     }
 
-    // シリーズ選択のロック・アンロック制御
     function updateControlLockState() {
       const versionSelect = document.getElementById("version-select");
       const livesSelect = document.getElementById("lives-select");
